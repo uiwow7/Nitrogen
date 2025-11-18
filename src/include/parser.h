@@ -5,11 +5,11 @@
 typedef struct AstChildren {
     int capacity;
     int length;
-    struct AstNode** loc;
+    struct AstNode **loc;
 } AstChildren;
 
 typedef struct AstNode {
-    Token* token;
+    Token *token;
 
     enum {
         Node_Root, // Currently only used for the root node
@@ -19,11 +19,14 @@ typedef struct AstNode {
     } node_type;
 
     AstChildren children;
-    struct AstNode* parent;
+    struct AstNode *parent;
 } AstNode;
 
-void addChildAst(AstNode* parent, AstNode* new_child) {
-    AstChildren* children = &(parent->children);
+/// @brief Adds an AstNode as a child to another given AstNode
+/// @param parent The AstNode to add the child to
+/// @param new_child The AstNode to be added as a child
+void addChildAst(AstNode *parent, AstNode *new_child) {
+    AstChildren *children = &(parent->children);
     
     children->length++;
 
@@ -32,12 +35,16 @@ void addChildAst(AstNode* parent, AstNode* new_child) {
         children->loc = realloc(children->loc, children->capacity * sizeof(AstNode*));
     }
     
-    AstNode** insert_loc = (children->loc + (children->length - 1) * sizeof(AstNode*));
+    AstNode **insert_loc = (children->loc + (children->length - 1) * sizeof(AstNode*));
     new_child->parent = parent;
     *insert_loc = new_child;
 }
 
-AstNode* getChildAst(AstNode parent, int index) {
+/// @brief Get's an AstNode's `index`th child
+/// @param parent The parent node to get the child from
+/// @param index The index of the child
+/// @return The child at `index`
+AstNode *getChildAst(AstNode parent, int index) {
     if (index > parent.children.length) {
         return (AstNode*)(-1);
     }
@@ -49,8 +56,10 @@ AstNode* getChildAst(AstNode parent, int index) {
     return *(parent.children.loc + index * sizeof(AstNode*));
 }
 
-AstNode* new_AstNode() {
-    AstNode* node = calloc(1, sizeof(AstNode));
+/// @brief Allocates and initializes an AstNode
+/// @return A pointer to the new node
+AstNode *new_AstNode() {
+    AstNode *node = calloc(1, sizeof(AstNode));
     node->children.loc = malloc(sizeof(AstNode*));
     node->children.capacity = 1;
     node->children.length = 0;
@@ -62,30 +71,37 @@ AstNode* new_AstNode() {
 typedef struct ParserState {
     bool inExpr;
     bool inArgs;
-    AstNode* node_ref;
-    AstNode* scope_ref;
+    AstNode *node_ref;
+    AstNode *scope_ref;
 } Parsestate;
 
-AstNode* parse(Program program) {
-    Parsestate state;
-
-    AstNode* root = new_AstNode();
-    AstNode* current_node = root;
-    state.scope_ref = root;    
+/// @brief Parses a program (list of tokens) into an Abstract Syntax Tree
+/// @param program The list of tokens to convert into AST
+/// @return The root node of the AST
+AstNode *parse(Program program) {
+    AstNode *root = new_AstNode();
+    AstNode *current_node = root; 
 
     root->node_type = Node_Root;
     root->token = nullptr;
     root->parent = nullptr;
 
-    Token* current_token = program.ref;
-    Token* prev_token = nullptr;
+    Parsestate state = {
+        .inArgs = false,
+        .inExpr = false,
+        .node_ref = nullptr,
+        .scope_ref = root
+    };
+
+    Token *current_token = program.ref;
+    Token *prev_token = nullptr;
     int loc = 0;
 
     while (current_token->token_type != Tk_EOF) {
         // printf("current node: %d\n", current_node->node_type);
 
         if (current_token->token_type == Tk_ID) {
-            AstNode* new = new_AstNode();
+            AstNode *new = new_AstNode();
             new->token = current_token;
             new->node_type = Node_Value;
             state.node_ref = new;
@@ -94,7 +110,7 @@ AstNode* parse(Program program) {
         }
 
         if (current_token->token_type == Tk_Openparen) {
-            AstNode* new = new_AstNode();
+            AstNode *new = new_AstNode();
             new->token = current_token;
             new->node_type = Node_Expr;
 
@@ -117,7 +133,7 @@ AstNode* parse(Program program) {
         }
 
         if (current_token->token_type == Tk_Strliteral) {
-            AstNode* new = new_AstNode();
+            AstNode *new = new_AstNode();
             new->token = current_token;
             new->node_type = Node_Value;
 

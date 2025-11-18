@@ -4,17 +4,17 @@
 
 #define nextToken() num_tks_processed++; current_token = (tokens + num_tks_processed * sizeof(Token));
 
-typedef struct {
-    char* file;
+typedef struct TokenLocation {
+    char *file;
     int line;
     int col;
 } TokenLoc;
 
-typedef struct {
+typedef struct Token {
     void* values;
     int num_values;
     
-    enum {
+    enum TokenType {
         Tk_ID,
         Tk_Fncall,
         Tk_Intliteral,
@@ -28,34 +28,41 @@ typedef struct {
     TokenLoc loc;
 } Token;
 
-typedef struct {
+typedef struct TokenList {
     Token* ref;
     int len;
 } Program;
 
-char* TokenTypeRepr(int tt) {
-    switch (tt) {
-        case 0:
+/// @brief Returns a string to represent a token type enum
+/// @param tokenType An int from the token type enum
+/// @return A string
+char *TokenTypeRepr(enum TokenType tokenType) {
+    switch (tokenType) {
+        case Tk_ID:
             return "id";
-        case 1:
+        case Tk_Fncall:
             return "fncall";
-        case 2:
+        case Tk_Intliteral:
             return "intliteral";
-        case 3:
+        case Tk_Strliteral:
             return "strliteral";
-        case 4:
+        case Tk_Openparen:
             return "openparen";
-        case 5:
+        case Tk_Closeparen:
             return "closeparen";
-        case 6:
+        case Tk_Semicolon:
             return "semicolon";
-        case 7:
+        case Tk_EOF:
             return "EOF";
     }
 
     return "unknown";
 }
 
+/// @brief Returns a token at a given index into a program struct
+/// @param program The Program to index into
+/// @param index The index we want to get the token from
+/// @return A pointer to the token at the given index
 Token* TokenAtIndex(Program program, int index) {
     if (index > program.len) {
         printf("Error: Indexing out of range, index: %d, len: %d\n", index, program.len);
@@ -65,7 +72,11 @@ Token* TokenAtIndex(Program program, int index) {
     return program.ref + index * sizeof(Token);
 }
 
-Program lex(Astr input, char* filename) {
+/// @brief Lexes a given Astr-type input into a series of Token structs
+/// @param input Input for the lexer to tokenize
+/// @param filename Filename for error reporting using Token locations
+/// @return A list of lexed Tokens
+Program lex(Astr input, char *filename) {
     // Lexing takes 2 steps
     // For the first one, we simply compute the number of tokens we want
     // Then we allocate memory for the program
@@ -112,12 +123,19 @@ Program lex(Astr input, char* filename) {
     int tracker_index = 0;
     c = 'A'; // is null by default so set it to a non-null value to get the loop to start
     index = 0;
-    TokenLoc current_loc;
-    current_loc.file = filename;
+    TokenLoc current_loc = {
+        .file = filename,
+        .line = 0,
+        .col = 0
+    };
 
     while (c != '\0') {
         c = input.str_ref[index];
         tracker[tracker_index] = c;
+
+        if (isWhiteSpace(c) && !in_strliteral) {
+            tracker_index--;
+        }
 
         if (c == '\n') {
             current_loc.line++;
@@ -125,7 +143,7 @@ Program lex(Astr input, char* filename) {
         }
 
         if ((c == ' ' || c == '(' || c == ')' || c == ',' || c == ';') && !in_strliteral && tracker_index > 1) {
-            char* tk_val = malloc(tracker_index + 1);
+            char *tk_val = malloc(tracker_index + 1);
             memcpy(tk_val, tracker, tracker_index);
             tk_val[tracker_index + 1] = '\0';
 
@@ -148,7 +166,7 @@ Program lex(Astr input, char* filename) {
             in_strliteral = true;
         }  
         else if (c == '"' && in_strliteral && !escaped) {
-            char* tk_val = malloc(tracker_index - 1);
+            char *tk_val = malloc(tracker_index - 1);
             memcpy(tk_val, tracker + 1, tracker_index - 1);
             tk_val[tracker_index - 1] = '\0';
 
