@@ -57,9 +57,17 @@ char *valueAsString(NodeValue val) {
 /// @param values A list of the values associated with the arguments
 /// @param num_values The number of arguments
 void interpretFunctionCall(AstNode* node, InterpreterState* state, NodeValue values[], int num_values) {
-    if (streq(node->token->values, "print")) {
+    if (node->token->values == NULL) {
+        fprintf(stderr, "\x1B[31mERROR: %s\nReferenceError: Function with undefined name.\n\x1B[0m", formatTokenLoc(node->token->loc));
+    }
+
+    if (streq((char*)node->token->values, "print")) {
         printf("%s\n", valueAsString(*values));
     }
+
+    fprintf(stderr, "\x1B[31mERROR: %s\nReferenceError: Cannot find function `%s`.\n\x1B[0m", formatTokenLoc(node->token->loc), (char*)node->token->values);
+
+    return;
 }
 
 /// @brief Traverses an AstNode and performs all necessary interpreting. The core function of the interpreter

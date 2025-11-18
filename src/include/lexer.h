@@ -11,32 +11,39 @@ typedef struct TokenLocation {
     int col;
 } TokenLoc;
 
+typedef enum TokenType {
+    Tk_Null,
+    Tk_ID,
+    Tk_Type,
+    Tk_Fncall,
+    Tk_Intliteral,
+    Tk_Strliteral,
+    Tk_Openparen,
+    Tk_Closeparen,
+    Tk_Semicolon,
+    Tk_Assign,
+    Tk_EOF
+}  TokenType;
+
 typedef struct Token {
-    void* values;
+    void *values;
     int num_values;
     
-    enum TokenType {
-        Tk_Null,
-        Tk_ID,
-        Tk_Fncall,
-        Tk_Intliteral,
-        Tk_Strliteral,
-        Tk_Openparen,
-        Tk_Closeparen,
-        Tk_Semicolon,
-        Tk_EOF
-    } token_type;
+    TokenType token_type;
 
     TokenLoc loc;
 } Token;
 
 typedef struct TokenList {
-    Token* ref;
+    Token *ref;
     int len;
     int capacity;
 } Program;
 
-void push_token(Program* program, Token token) {
+/// @brief Pushes a token to a Program dynamic array
+/// @param program A reference to the program
+/// @param token The token to push
+void push_token(Program *program, Token token) {
     if (program->len >= program->capacity) {
         program->capacity *= 2;
         program->ref = realloc(program->ref, program->capacity * sizeof(Token));
@@ -69,9 +76,24 @@ char *TokenTypeRepr(enum TokenType tokenType) {
             return "EOF";
         case Tk_Null:
             return "null";
+        case Tk_Assign:
+            return "assign";
+        case Tk_Type:
+            return "type";
     }
 
-    return "unknown";
+    return "could not represent token type";
+}
+
+char *formatTokenLoc(TokenLoc loc) {
+    Astr combined = _Astr(loc.file);
+
+    combined = concat(combined, _Astr(":"));    
+    combined = concat(combined, fromInt(loc.line));    
+    combined = concat(combined, _Astr(":"));    
+    combined = concat(combined, fromInt(loc.col));
+
+    return AstrToStr(combined);
 }
 
 /// @brief Returns a token at a given index into a program struct
@@ -100,6 +122,16 @@ typedef struct LexerState {
     TokenLoc current_loc;
 } Lexstate;
 
+/// @brief Determines the token type of an identifier
+/// @param id The identifier string
+/// @return The TokenType of the identifier
+TokenType idTokenType(char *id) {
+    if (streq(id, "int") || streq(id, "float") || streq(id, "char") || streq(id, "string")) {
+        return Tk_Type;
+    }
+
+    return Tk_ID;
+}
 
 /// @brief Lexes a given Astr-type input into a series of Token structs
 /// @param input Input for the lexer to tokenize
@@ -111,7 +143,7 @@ Program lex(Astr input, char *filename) {
     char c = 'A'; // is null by default so set it to a non-null value to get the loop to start
     int index = 0;
 
-    Token* tokens = malloc(TOKEN_CAPACITY * sizeof(Token));
+    Token *tokens = malloc(TOKEN_CAPACITY * sizeof(Token));
     // Token* current_token = tokens;
     
     Program program = {
@@ -126,8 +158,8 @@ Program lex(Astr input, char *filename) {
         .tracker_index = 0,
         .current_loc = {
             .file = filename,
-            .line = 0,
-            .col = 0
+            .line = 1,
+            .col = 1
         }   
     };
 
@@ -135,24 +167,27 @@ Program lex(Astr input, char *filename) {
         c = input.str_ref[index];
         state.tracker[state.tracker_index] = c;
 
-        // printf("char: %c, tracker: %s [%d]\n", c, tracker, tracker_index);
+        // printf("char: %c, tracker: %s [%d]\n", c, state.tracker, state.tracker_index);
 
-        if (isWhiteSpace(c) && !state.in_strliteral) {
-            state.tracker_index--;
-        }
+        if (isWhiteSpace(c) && !state.in_strliteral && state.tracker_index != 1) state.tracker_index--;
 
         if (c == '\n') {
             state.current_loc.line++;
-            state.current_loc.col = 0;
+            state.current_loc.col = 1;
         }
 
-        if ((c == ' ' || c == '(' || c == ')' || c == ',' || c == ';') && !state.in_strliteral && state.tracker_index > 1) {
+        if ((c == ' ' || c == '(' || c == ')' || c == ',' || c == ';') && !state.in_strliteral && state.tracker_index > 0) {
+            if (isWhiteSpace(c)) state.tracker_index++;
+
             char *tk_val = strndup(state.tracker, state.tracker_index);
+
+            // printf("ID: %s, %d\n", tk_val, state.tracker_index);
+        
 
             state.tracker_index = -1;
             // printf("IDDDD: %d, %s\n", state.num_tks_processed, TokenTypeRepr(current_token->token_type));
             push_token(&program, (Token){
-                .token_type = Tk_ID,
+                .token_type = idTokenType(tk_val),
                 .values = tk_val,
                 .num_values = 1,
                 .loc = state.current_loc
@@ -212,6 +247,18 @@ Program lex(Astr input, char *filename) {
 
             push_token(&program, (Token){
                 .token_type = Tk_Semicolon,
+                .values = NULL,
+                .num_values = 0,
+                .loc = state.current_loc
+            });
+
+            nextToken();
+        }
+        else if (c == '=' && !state.in_strliteral) {
+            state.tracker_index = -1;
+
+            push_token(&program, (Token){
+                .token_type = Tk_Assign,
                 .values = NULL,
                 .num_values = 0,
                 .loc = state.current_loc

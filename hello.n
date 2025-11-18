@@ -1,4 +1,1 @@
-print("hello world");
-print("test");
-print("test2");
-print("asdsdfa");
+thisdoesnotexist("hello world");

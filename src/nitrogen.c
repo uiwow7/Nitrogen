@@ -77,10 +77,14 @@ int main(int argc, char *argv[]) {
 
             printf("tk: %s\n", TokenTypeRepr(tk->token_type));
 
-            if (tk->token_type == 0) {
-                printf("id: %s\n", (char*)tk->values);
+            if (tk->token_type == Tk_ID) {
+                printf("    id: %s\n", (char*)tk->values);
             }
         }
+    }
+
+    if (inArgv(argv, argc, "--no-parse")) {
+        return 0;
     }
 
     AstNode* _ast = parse(_program);

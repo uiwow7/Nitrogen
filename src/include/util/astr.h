@@ -103,12 +103,48 @@ Astr substringRef(Astr _string, int start, int end) {
 /// @return A + B concatenated
 Astr concat(Astr a, Astr b) {
 	int new_size = a.len + b.len;
-	Astr* new = malloc(new_size);
+	char *new_ref = malloc(new_size);
+	
+	memcpy(new_ref, a.str_ref, a.len);
+	memcpy(new_ref + a.len, b.str_ref, b.len);
+	
+	Astr new = {
+        .str_ref = new_ref,
+        .len = new_size
+    };
+
+    return new;
+}
+
+/// @brief WARNING: Only use this if `a` and `b` are `free`-able
+///
+/// Concatenates 2 Astrs and stores them into a new location in memory, then returns that location dereferenced, but frees the original strings.
+/// @param a MUST BE `free`-able. A string to concatenate
+/// @param b MUST BE `free`-able. A string to concatenate
+/// @return A + B concatenated
+Astr concatFree(Astr a, Astr b) {
+	int new_size = a.len + b.len;
+	Astr *new = malloc(new_size);
 	
 	memcpy(new, a.str_ref, a.len);
 	memcpy(new + a.len, b.str_ref, b.len);
+
+    free(a.str_ref);
+    // free(b.str_ref);
 	
 	return *new;
+}
+
+/// @brief Concatenates 2 Astrs and stores the result in `a`
+/// @param a The 1st string to concat and where the result will be stored
+/// @param b The 2nd string to concat
+void concatAppend(Astr a, Astr b) {
+    char *a_ref = realloc(a.str_ref, a.len + b.len + 1);
+
+    memcpy(a_ref, a.str_ref, a.len);
+	memcpy(a_ref + a.len, b.str_ref, b.len);
+
+    a.str_ref = a_ref;
 }
 
 /// @brief Returns if a char `c` is upper case or not
