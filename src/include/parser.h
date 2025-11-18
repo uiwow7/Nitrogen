@@ -8,15 +8,18 @@ typedef struct AstChildren {
     struct AstNode **loc;
 } AstChildren;
 
+typedef enum AstNodeType {
+    Node_Root, // Currently only used for the root node
+    Node_Expr, // node with 1+ children of Node_Expr or Node_Value
+    Node_Args, // node with 0+ children of Node_Expr or Node_Value
+    Node_Declr, // Node with 2 children, a Node_Value type and a Node_Value id
+    Node_Value // node with no children
+} NodeType;
+
 typedef struct AstNode {
     Token *token;
 
-    enum {
-        Node_Root, // Currently only used for the root node
-        Node_Expr, // node with 1+ children of Node_Expr or Node_Value
-        Node_Args, // node with 0+ children of Node_Expr or Node_Value
-        Node_Value // node with no children
-    } node_type;
+    NodeType node_type;
 
     AstChildren children;
     struct AstNode *parent;
@@ -110,7 +113,13 @@ AstNode *parse(Program program) {
             addChildAst(current_node, new);
         }
 
-        if (current_token->token_type == Tk_Openparen) {
+        else if (current_token->token_type == Tk_Assign) {
+            AstNode *new = new_AstNode();
+            new->token = current_token;
+            new->node_
+        }
+
+        else if (current_token->token_type == Tk_Openparen) {
             AstNode *new = new_AstNode();
             new->token = current_token;
             new->node_type = Node_Expr;
@@ -133,7 +142,7 @@ AstNode *parse(Program program) {
             current_node = new;
         }
 
-        if (current_token->token_type == Tk_Strliteral) {
+        else if (current_token->token_type == Tk_Strliteral) {
             AstNode *new = new_AstNode();
             new->token = current_token;
             new->node_type = Node_Value;
@@ -142,7 +151,7 @@ AstNode *parse(Program program) {
             addChildAst(current_node, new);
         }
 
-        if (current_token->token_type == Tk_Closeparen) {
+        else if (current_token->token_type == Tk_Closeparen) {
             if (state.inExpr) {
                 state.inExpr = false;
             }
@@ -151,7 +160,7 @@ AstNode *parse(Program program) {
             }
         }
 
-        if (current_token->token_type == Tk_Semicolon) {
+        else if (current_token->token_type == Tk_Semicolon) {
             current_node = state.scope_ref;
         }
 
