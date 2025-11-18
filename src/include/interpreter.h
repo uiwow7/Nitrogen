@@ -63,6 +63,7 @@ void interpretFunctionCall(AstNode* node, InterpreterState* state, NodeValue val
 
     if (streq((char*)node->token->values, "print")) {
         printf("%s\n", valueAsString(*values));
+        return;
     }
 
     fprintf(stderr, "\x1B[31mERROR: %s\nReferenceError: Cannot find function `%s`.\n\x1B[0m", formatTokenLoc(node->token->loc), (char*)node->token->values);
