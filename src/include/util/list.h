@@ -16,7 +16,7 @@ int LinkedList_length(LinkedList list) {
     LinkedList currentItem = list;
     
     while (true) {
-        if (currentItem.next == nullptr) {
+        if (currentItem.next == NULL) {
             return len;
         }
         
@@ -32,7 +32,7 @@ LinkedList LinkedList_atIndex(LinkedList list, int index) {
     }
     
     while (index != 0) {
-        if (currentItem.next == nullptr) {
+        if (currentItem.next == NULL) {
             perror("Indexing out of range");
             _exit(1);
         }
@@ -50,7 +50,7 @@ void LinkedList_push(LinkedList list, void* value) {
     LinkedList* new_ptr = malloc(sizeof(LinkedList));
     LinkedList new = *new_ptr;
 
-    new.next = nullptr;
+    new.next = NULL;
     new.value = value;
 
     lastItem.next = new_ptr;
@@ -58,6 +58,6 @@ void LinkedList_push(LinkedList list, void* value) {
 
 #endif
 
-#ifndef nullptr
-#define nullptr ((void*)0)
+#ifndef NULL
+#define NULL ((void*)0)
 #endif

@@ -25,7 +25,6 @@ typedef struct AstringList {
 
 #define ASTR_IMPL
 #define streq(a, b) (strcmp(a, b) == 0)
-#define nullptr ((void*)(0))
 
 /// @brief Checks if a given file exists (Stolen from StackOverflow)
 /// @param filename The path to the file
@@ -228,7 +227,7 @@ Astr fromInt(int x) {
 	char res[10];
     Astr ret = {
         .len = 0,
-        .str_ref = nullptr
+        .str_ref = NULL
     };
 
 	while (x != 0) {
@@ -301,7 +300,7 @@ Astr *AstrAtIndex(Astr_l _string_list, int index) {
         return (Astr*)-1;
     }
 
-    return _string_list.astr_ref + index * sizeof(Astr);
+    return _string_list.astr_ref + index;
 }
 
 /// @brief Reads a file from a path and converts it into an Astr

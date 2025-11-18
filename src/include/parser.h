@@ -35,7 +35,8 @@ void addChildAst(AstNode *parent, AstNode *new_child) {
         children->loc = realloc(children->loc, children->capacity * sizeof(AstNode*));
     }
     
-    AstNode **insert_loc = (children->loc + (children->length - 1) * sizeof(AstNode*));
+    // Pointer arithmetic: advance by (index) elements, not bytes.
+    AstNode **insert_loc = (children->loc + (children->length - 1));
     new_child->parent = parent;
     *insert_loc = new_child;
 }
@@ -45,15 +46,15 @@ void addChildAst(AstNode *parent, AstNode *new_child) {
 /// @param index The index of the child
 /// @return The child at `index`
 AstNode *getChildAst(AstNode parent, int index) {
-    if (index > parent.children.length) {
+    if (index < 0 || index >= parent.children.length) {
         return (AstNode*)(-1);
     }
 
-    if (parent.children.loc == nullptr) {
+    if (parent.children.loc == NULL) {
         return (AstNode*)(-1);
     }
 
-    return *(parent.children.loc + index * sizeof(AstNode*));
+    return parent.children.loc[index];
 }
 
 /// @brief Allocates and initializes an AstNode
@@ -83,22 +84,22 @@ AstNode *parse(Program program) {
     AstNode *current_node = root; 
 
     root->node_type = Node_Root;
-    root->token = nullptr;
-    root->parent = nullptr;
+    root->token = NULL;
+    root->parent = NULL;
 
     Parsestate state = {
         .inArgs = false,
         .inExpr = false,
-        .node_ref = nullptr,
+        .node_ref = NULL,
         .scope_ref = root
     };
 
     Token *current_token = program.ref;
-    Token *prev_token = nullptr;
+    Token *prev_token = NULL;
     int loc = 0;
 
     while (current_token->token_type != Tk_EOF) {
-        // printf("current node: %d\n", current_node->node_type);
+        // printf("current node: %d, tt: %s\n", current_node->node_type, TokenTypeRepr(current_token->token_type));
 
         if (current_token->token_type == Tk_ID) {
             AstNode *new = new_AstNode();
@@ -114,7 +115,7 @@ AstNode *parse(Program program) {
             new->token = current_token;
             new->node_type = Node_Expr;
 
-            if (prev_token != nullptr) {
+            if (prev_token != NULL) {
                 if (prev_token->token_type == Tk_ID) {
                     new->node_type = Node_Args;
                     state.inArgs = true;
@@ -136,6 +137,7 @@ AstNode *parse(Program program) {
             AstNode *new = new_AstNode();
             new->token = current_token;
             new->node_type = Node_Value;
+            // printf("str literal: %s\n", TokenTypeRepr(new->token->token_type));
 
             addChildAst(current_node, new);
         }
@@ -155,7 +157,7 @@ AstNode *parse(Program program) {
 
         loc++;
         prev_token = current_token;
-        current_token = TokenAtIndex(program, loc); 
+        current_token = TokenAtIndex(program, loc);
     }
 
     return root;

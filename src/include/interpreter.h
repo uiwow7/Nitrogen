@@ -30,7 +30,7 @@ char *valueAsString(NodeValue val) {
         case Type_null:
             return "null";
         case Type_str:
-            return val.loc + 1;
+            return val.loc;
         case Type_int:
             return AstrToStr(fromInt(*(int*)(val.loc)));
         case Type_value:
@@ -69,11 +69,13 @@ void interpretFunctionCall(AstNode* node, InterpreterState* state, NodeValue val
 NodeValue traverseAstnode(AstNode* node, InterpreterState* state) {
     int i;
 
-    if (node->token != nullptr) {
+    if (node->token != NULL) {
+        // printf("TT: %s\n", TokenTypeRepr(node->token->token_type));
         if (node->token->token_type == Tk_Strliteral) {
+            char *copied = strdup(node->token->values);
             return (NodeValue){
                 .type = Type_str,
-                .loc = node->token->values
+                .loc = copied
             };
         }
     }
@@ -84,7 +86,7 @@ NodeValue traverseAstnode(AstNode* node, InterpreterState* state) {
         values = malloc(sizeof(NodeValue));
         *values = (NodeValue){
             .type = Type_null,
-            .loc = nullptr
+            .loc = NULL
         };
     } else {
         values = calloc(node->children.length, sizeof(NodeValue));
@@ -94,9 +96,9 @@ NodeValue traverseAstnode(AstNode* node, InterpreterState* state) {
         values[i] = traverseAstnode(getChildAst(*node, i), state);
     }
 
-    if (node->token != nullptr) {
+    if (node->token != NULL) {
         if (node->token->token_type == Tk_Fncall) {
-            // printf("calling: %p, %s\n", values, (char*)(node->token->values +);
+            // printf("calling: %p, %s\n", values, (char*)(node->token->values));
             interpretFunctionCall(node, state, values, node->children.length);
         }
     }
@@ -112,7 +114,11 @@ NodeValue traverseAstnode(AstNode* node, InterpreterState* state) {
 /// @brief Initializes the interpreter and traverses the root node
 /// @param root The root node
 void interpretAst(AstNode* root) {
-    InterpreterState state;
+    InterpreterState state = {
+        .current_function = NULL,
+        .in_fn_call = false
+    };
+
     traverseAstnode(root, &state);
 }
 

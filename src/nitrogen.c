@@ -6,10 +6,11 @@
 
 // #define GDB_MODE
 #define GDB_DEBUG_FILENAME "hello.n"
-#define DEBUG_LOGS
 
 #define INTERPRET 0
 #define COMPILE 1
+
+bool debug_logs;
 
 bool inArgv(char *argv[], int argc, char *str) {
     int i;
@@ -51,9 +52,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    if (inArgv(argv, argc, "-d") || inArgv(argv, argc, "-debug") || inArgv(argv, argc, "-log")) {
-        #define DEBUG_LOGS
-    }
+    debug_logs = inArgv(argv, argc, "-d") || inArgv(argv, argc, "-debug") || inArgv(argv, argc, "-log");
 
     #endif
 
@@ -72,17 +71,17 @@ int main(int argc, char *argv[]) {
 
     int i = 0;
 
-    #ifdef DEBUG_LOGS
-        // for (i = 0; i < _program.len; i++) {
-        //     Token* tk = TokenAtIndex(_program, i);
+    if (debug_logs) {
+        for (i = 0; i < _program.len; i++) {
+            Token* tk = TokenAtIndex(_program, i);
 
-        //     printf("tk: %s\n", TokenTypeRepr(tk->token_type));
+            printf("tk: %s\n", TokenTypeRepr(tk->token_type));
 
-        //     if (tk->token_type == 0) {
-        //         printf("id: %s\n", (char*)tk->values);
-        //     }
-        // }
-    #endif
+            if (tk->token_type == 0) {
+                printf("id: %s\n", (char*)tk->values);
+            }
+        }
+    }
 
     AstNode* _ast = parse(_program);
 

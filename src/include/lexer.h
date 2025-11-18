@@ -2,7 +2,8 @@
 
 #define LEXER_IMPL
 
-#define nextToken() num_tks_processed++; current_token = (tokens + num_tks_processed * sizeof(Token));
+#define nextToken() state.num_tks_processed++;
+//printf("[%d]: Token (%s)\n", num_tks_processed, TokenTypeRepr(current_token->token_type));
 
 typedef struct TokenLocation {
     char *file;
@@ -15,6 +16,7 @@ typedef struct Token {
     int num_values;
     
     enum TokenType {
+        Tk_Null,
         Tk_ID,
         Tk_Fncall,
         Tk_Intliteral,
@@ -31,7 +33,18 @@ typedef struct Token {
 typedef struct TokenList {
     Token* ref;
     int len;
+    int capacity;
 } Program;
+
+void push_token(Program* program, Token token) {
+    if (program->len >= program->capacity) {
+        program->capacity *= 2;
+        program->ref = realloc(program->ref, program->capacity * sizeof(Token));
+    }
+
+    program->ref[program->len] = token;
+    program->len++;
+}
 
 /// @brief Returns a string to represent a token type enum
 /// @param tokenType An int from the token type enum
@@ -54,6 +67,8 @@ char *TokenTypeRepr(enum TokenType tokenType) {
             return "semicolon";
         case Tk_EOF:
             return "EOF";
+        case Tk_Null:
+            return "null";
     }
 
     return "unknown";
@@ -69,178 +84,159 @@ Token* TokenAtIndex(Program program, int index) {
         return (Token*)-1;
     }
 
-    return program.ref + index * sizeof(Token);
+    return program.ref + index;
 }
+
+#define TRACKER_CAPACITY 1024
+typedef struct LexerState {
+    char tracker[TRACKER_CAPACITY];
+    int tracker_index;
+    
+    bool escaped;
+    bool in_strliteral;
+
+    int num_tks_processed;
+
+    TokenLoc current_loc;
+} Lexstate;
+
 
 /// @brief Lexes a given Astr-type input into a series of Token structs
 /// @param input Input for the lexer to tokenize
 /// @param filename Filename for error reporting using Token locations
 /// @return A list of lexed Tokens
 Program lex(Astr input, char *filename) {
-    // Lexing takes 2 steps
-    // For the first one, we simply compute the number of tokens we want
-    // Then we allocate memory for the program
-    // Then we actually compute the tokens and add them to the program
+    #define TOKEN_CAPACITY 1024
+    
     char c = 'A'; // is null by default so set it to a non-null value to get the loop to start
     int index = 0;
-    int tk_count = 0;
-    bool in_strliteral = false;
-    bool escaped = false;
 
-    while (c != '\0') {
-        c = input.str_ref[index];
+    Token* tokens = malloc(TOKEN_CAPACITY * sizeof(Token));
+    // Token* current_token = tokens;
+    
+    Program program = {
+        .ref = tokens,
+        .len = 0,
+        .capacity = TOKEN_CAPACITY
+    };
 
-        if (c == '\\' && in_strliteral) {
-            escaped = true;
-        }
-        else if (c == '"' && !in_strliteral) {
-            in_strliteral = true;
-        } 
-        else if (c == '"' && in_strliteral && !escaped) {
-            tk_count++;
-            in_strliteral = false;
-        }
-        else if (c == '(' || c == ')' || c == ';') {
-            tk_count++;
-        }
-        else if (c == ' ' && !in_strliteral) {
-            tk_count++;
-        }
-
-        if (escaped) {
-            escaped = false;
-        }
-
-        index++;
-    }
-
-    tk_count++; // for eof
-
-    Token* tokens = malloc(tk_count * sizeof(Token));
-    int num_tks_processed = 0;
-    Token* current_token = tokens;
-    char tracker[1024]; // should be enough for everyone
-    int tracker_index = 0;
-    c = 'A'; // is null by default so set it to a non-null value to get the loop to start
-    index = 0;
-    TokenLoc current_loc = {
-        .file = filename,
-        .line = 0,
-        .col = 0
+    Lexstate state = {
+        .escaped = false,
+        .in_strliteral = false,
+        .tracker_index = 0,
+        .current_loc = {
+            .file = filename,
+            .line = 0,
+            .col = 0
+        }   
     };
 
     while (c != '\0') {
         c = input.str_ref[index];
-        tracker[tracker_index] = c;
+        state.tracker[state.tracker_index] = c;
 
-        if (isWhiteSpace(c) && !in_strliteral) {
-            tracker_index--;
+        // printf("char: %c, tracker: %s [%d]\n", c, tracker, tracker_index);
+
+        if (isWhiteSpace(c) && !state.in_strliteral) {
+            state.tracker_index--;
         }
 
         if (c == '\n') {
-            current_loc.line++;
-            current_loc.col = 0;
+            state.current_loc.line++;
+            state.current_loc.col = 0;
         }
 
-        if ((c == ' ' || c == '(' || c == ')' || c == ',' || c == ';') && !in_strliteral && tracker_index > 1) {
-            char *tk_val = malloc(tracker_index + 1);
-            memcpy(tk_val, tracker, tracker_index);
-            tk_val[tracker_index + 1] = '\0';
+        if ((c == ' ' || c == '(' || c == ')' || c == ',' || c == ';') && !state.in_strliteral && state.tracker_index > 1) {
+            char *tk_val = strndup(state.tracker, state.tracker_index);
 
-            tracker_index = 0;
-
-            *current_token = (Token){
+            state.tracker_index = -1;
+            // printf("IDDDD: %d, %s\n", state.num_tks_processed, TokenTypeRepr(current_token->token_type));
+            push_token(&program, (Token){
                 .token_type = Tk_ID,
                 .values = tk_val,
                 .num_values = 1,
-                .loc = current_loc
-            };
+                .loc = state.current_loc
+            });
 
             nextToken();
         }
 
-        if (c == '\\' && in_strliteral) {
-            escaped = true;
+        if (c == '\\' && state.in_strliteral) {
+            state.escaped = true;
         }
-        else if (c == '"' && !in_strliteral) {
-            in_strliteral = true;
+        else if (c == '"' && !state.in_strliteral) {
+            state.in_strliteral = true;
         }  
-        else if (c == '"' && in_strliteral && !escaped) {
-            char *tk_val = malloc(tracker_index - 1);
-            memcpy(tk_val, tracker + 1, tracker_index - 1);
-            tk_val[tracker_index - 1] = '\0';
+        else if (c == '"' && state.in_strliteral && !state.escaped) {
+            char *tk_val = strndup(state.tracker + 1, state.tracker_index - 1); // exclude quotes
 
-            tracker_index = 0;
+            state.tracker_index = -1;
 
-            *current_token = (Token){
+            push_token(&program, (Token){
                 .token_type = Tk_Strliteral,
                 .values = tk_val,
                 .num_values = 1,
-                .loc = current_loc
-            };
+                .loc = state.current_loc
+            });
 
             nextToken();
 
-            in_strliteral = false;
+            state.in_strliteral = false;
         } 
-        else if (c == '(' && !in_strliteral) {
-            tracker_index = 0;
+        else if (c == '(' && !state.in_strliteral) {
+            state.tracker_index = -1;
 
-            *current_token = (Token){
+            push_token(&program, (Token){
                 .token_type = Tk_Openparen,
-                .values = nullptr,
+                .values = NULL,
                 .num_values = 0,
-                .loc = current_loc
-            };
+                .loc = state.current_loc
+            });
 
             nextToken();
         }
-        else if (c == ')' && !in_strliteral) {
-            tracker_index = 0;
+        else if (c == ')' && !state.in_strliteral) {
+            state.tracker_index = -1;
 
-            *current_token = (Token){
+            push_token(&program, (Token){
                 .token_type = Tk_Closeparen,
-                .values = nullptr,
+                .values = NULL,
                 .num_values = 0,
-                .loc = current_loc
-            };
+                .loc = state.current_loc
+            });
 
             nextToken();
         }
-        else if (c == ';' && !in_strliteral) {
-            tracker_index = 0;
+        else if (c == ';' && !state.in_strliteral) {
+            state.tracker_index = -1;
 
-            *current_token = (Token){
+            push_token(&program, (Token){
                 .token_type = Tk_Semicolon,
-                .values = nullptr,
+                .values = NULL,
                 .num_values = 0,
-                .loc = current_loc
-            };
+                .loc = state.current_loc
+            });
 
             nextToken();
         }
 
-        if (escaped) {
-            escaped = false;
-        }
+        if (state.escaped) state.escaped = false;
 
         index++;
-        tracker_index++;
-        current_loc.col++;
+        state.tracker_index++;
+        state.current_loc.col++;
     }
 
-    *current_token = (Token){
+    push_token(&program, (Token){
         .token_type = Tk_EOF,
         .num_values = 0,
-        .values = nullptr
-    };
+        .values = NULL,
+        .loc = state.current_loc
+    });
 
-    num_tks_processed++;
+    state.num_tks_processed++;
 
-    return (Program) {
-        .len = num_tks_processed,
-        .ref = tokens
-    };
+    return program;
 }
 
 #endif
