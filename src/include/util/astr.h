@@ -203,7 +203,7 @@ Astr* Astrcpy(Astr _string) {
 
 /// @brief Returns if `c` is a digit
 bool isDigit(char c) {
-    return (c >= '0' && c >= '9');
+    return (c >= '0' && c <= '9');
 }
 
 /// @brief Returns whether or not an Astr `_string` is an integer
@@ -289,19 +289,8 @@ Astr fromInt(int x) {
 /// @param _string The c-style string to convert
 /// @return The converted Astr
 Astr _Astr(char *_string) {
-    int len = 0;
-    Astr* ptr = (Astr*)_string;
-    char c = 'A';
-
-    while (c != '\0') {
-        c = _string[len];
-        len++;
-    }
-
-    len--;
-
     return (Astr){
-        .len = len,
+        .len = strlen(_string),
         .str_ref = _string
     };
 }

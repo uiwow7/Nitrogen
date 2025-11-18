@@ -58,7 +58,7 @@ char *valueAsString(NodeValue val) {
 /// @param num_values The number of arguments
 void interpretFunctionCall(AstNode* node, InterpreterState* state, NodeValue values[], int num_values) {
     if (node->token->values == NULL) {
-        fprintf(stderr, "\x1B[31mERROR: %s\nReferenceError: Function with undefined name.\n\x1B[0m", formatTokenLoc(node->token->loc));
+        reportError(node->token, "ReferenceError", "Function with an undefined name");
     }
 
     if (streq((char*)node->token->values, "print")) {
@@ -66,9 +66,11 @@ void interpretFunctionCall(AstNode* node, InterpreterState* state, NodeValue val
         return;
     }
 
-    fprintf(stderr, "\x1B[31mERROR: %s\nReferenceError: Cannot find function `%s`.\n\x1B[0m", formatTokenLoc(node->token->loc), (char*)node->token->values);
+    char *error_str = "Cannot find function `";
+    strcat(error_str, (char*)node->token->values);
+    strcat(error_str, "`");
 
-    return;
+    reportError(node->token, "ReferenceError", error_str);
 }
 
 /// @brief Traverses an AstNode and performs all necessary interpreting. The core function of the interpreter

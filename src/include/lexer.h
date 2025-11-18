@@ -96,6 +96,8 @@ char *formatTokenLoc(TokenLoc loc) {
     return AstrToStr(combined);
 }
 
+#include "error.h"
+
 /// @brief Returns a token at a given index into a program struct
 /// @param program The Program to index into
 /// @param index The index we want to get the token from
@@ -116,6 +118,7 @@ typedef struct LexerState {
     
     bool escaped;
     bool in_strliteral;
+    bool in_intliteral;
 
     int num_tks_processed;
 
@@ -131,6 +134,10 @@ TokenType idTokenType(char *id) {
     }
 
     return Tk_ID;
+}
+
+bool isTerminatingChar(char c) {
+    return (c == ' ' || c == '(' || c == ')' || c == ',' || c == ';');
 }
 
 /// @brief Lexes a given Astr-type input into a series of Token structs
@@ -176,27 +183,32 @@ Program lex(Astr input, char *filename) {
             state.current_loc.col = 1;
         }
 
-        if ((c == ' ' || c == '(' || c == ')' || c == ',' || c == ';') && !state.in_strliteral && state.tracker_index > 0) {
+        if (isTerminatingChar(c) && !state.in_strliteral && state.tracker_index > 0) {
             if (isWhiteSpace(c)) state.tracker_index++;
 
             char *tk_val = strndup(state.tracker, state.tracker_index);
 
-            // printf("ID: %s, %d\n", tk_val, state.tracker_index);
-        
-
-            state.tracker_index = -1;
-            // printf("IDDDD: %d, %s\n", state.num_tks_processed, TokenTypeRepr(current_token->token_type));
-            push_token(&program, (Token){
+            Token token = {
                 .token_type = idTokenType(tk_val),
                 .values = tk_val,
                 .num_values = 1,
                 .loc = state.current_loc
-            });
+            };
+
+            if (AstrIsD(_Astr(tk_val))) {
+                token.token_type = Tk_Intliteral;
+                int *int_value = malloc(sizeof(int));
+                *int_value = AstrToD(_Astr(tk_val));
+                token.values = int_value;
+            }
+
+            state.tracker_index = -1;
+            // printf("IDDDD: %d, %s, %s\n", AstrIsD(_Astr(tk_val)), TokenTypeRepr(token.token_type), tk_val);
+            push_token(&program, token);
 
             nextToken();
         }
-
-        if (c == '\\' && state.in_strliteral) {
+        else if (c == '\\' && state.in_strliteral) {
             state.escaped = true;
         }
         else if (c == '"' && !state.in_strliteral) {

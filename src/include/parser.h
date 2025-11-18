@@ -13,6 +13,7 @@ typedef enum AstNodeType {
     Node_Expr, // node with 1+ children of Node_Expr or Node_Value
     Node_Args, // node with 0+ children of Node_Expr or Node_Value
     Node_Declr, // Node with 2 children, a Node_Value type and a Node_Value id
+    Node_Action, // Node with 2 children
     Node_Value // node with no children
 } NodeType;
 
@@ -42,6 +43,18 @@ void addChildAst(AstNode *parent, AstNode *new_child) {
     AstNode **insert_loc = (children->loc + (children->length - 1));
     new_child->parent = parent;
     *insert_loc = new_child;
+}
+
+/// @brief Removes an AstNode's `index`th child
+/// @param parent The node to remove the child from
+/// @param index The index the child is at
+void removeChildAst(AstNode *parent, int index) {
+    if (parent->children.length == 0 || index >= parent->children.length || index < 0) {
+        return;
+    }
+
+    parent->children.length--;
+    parent->children.loc[index] = NULL;
 }
 
 /// @brief Get's an AstNode's `index`th child
@@ -75,7 +88,9 @@ AstNode *new_AstNode() {
 typedef struct ParserState {
     bool inExpr;
     bool inArgs;
+
     AstNode *node_ref;
+    int node_ref_index;
     AstNode *scope_ref;
 } Parsestate;
 
@@ -106,9 +121,25 @@ AstNode *parse(Program program) {
 
         if (current_token->token_type == Tk_ID) {
             AstNode *new = new_AstNode();
+            bool declaration = false;
+
+            if (prev_token != NULL) { 
+                declaration = (prev_token->token_type == Tk_Type);
+            }
+
             new->token = current_token;
-            new->node_type = Node_Value;
+            new->node_type = declaration ? Node_Declr : Node_Value;
             state.node_ref = new;
+            state.node_ref_index = current_node->children.length + 1;
+
+            if (declaration) {
+                AstNode *type_node = new_AstNode();
+
+                type_node->token = prev_token;
+                type_node->node_type = Node_Value;
+
+                addChildAst(new, type_node);
+            }
 
             addChildAst(current_node, new);
         }
@@ -116,7 +147,17 @@ AstNode *parse(Program program) {
         else if (current_token->token_type == Tk_Assign) {
             AstNode *new = new_AstNode();
             new->token = current_token;
-            new->node_
+            new->node_type = Node_Action;
+            
+            if (state.node_ref == NULL) {
+                reportError(current_token, "SyntaxError", "Improper assignment.");
+                exit(1); 
+            }
+
+            removeChildAst(current_node, state.node_ref_index);
+            addChildAst(new, state.node_ref);
+
+            state.node_ref = NULL;
         }
 
         else if (current_token->token_type == Tk_Openparen) {
