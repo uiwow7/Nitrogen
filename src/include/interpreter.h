@@ -81,12 +81,20 @@ NodeValue traverseAstnode(AstNode* node, InterpreterState* state) {
     int i;
 
     if (node->token != NULL) {
-        printf("TT: %s\n", TokenTypeRepr(node->token->token_type));
+        // printf("TT: %s\n", TokenTypeRepr(node->token->token_type));
         if (node->token->token_type == Tk_Strliteral) {
-            char *copied = strdup(node->token->values);
+            // char *copied = strdup(node->token->values);
             return (NodeValue){
                 .type = Type_str,
-                .loc = copied
+                .loc = node->token->values
+            };
+        }
+
+        if (node->token->token_type == Tk_Intliteral) {
+            // printf("intlit: %d\n", *(int*)(node->token->values));
+            return (NodeValue){
+                .type = Type_int,
+                .loc = node->token->values
             };
         }
     }

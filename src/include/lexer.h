@@ -199,6 +199,7 @@ Program lex(Astr input, char *filename) {
                 token.token_type = Tk_Intliteral;
                 int *int_value = malloc(sizeof(int));
                 *int_value = AstrToD(_Astr(tk_val));
+                // printf("int literal: %d\n", *int_value);
                 token.values = int_value;
             }
 

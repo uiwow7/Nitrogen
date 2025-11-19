@@ -232,7 +232,7 @@ int AstrToD(Astr _string) {
         return _SC_INT_MIN;
     }
 
-    int ret;
+    int ret = 0;
     int i;
     bool isNegative = false;
 
@@ -246,13 +246,16 @@ int AstrToD(Astr _string) {
 
         }
 
-        ret += ((int)c - 48) * (pow(10, (i - isNegative)));
+        int charnum = (int)c - 48;
+        int place = _string.len - 1 - i - isNegative;
+        int placeFactor = pow(10, place);
+
+        ret += (charnum * placeFactor);
     }
 
     if (isNegative) {
         ret = -ret;
     }
-
     return ret;
 }
 
@@ -266,6 +269,8 @@ Astr fromInt(int x) {
         .str_ref = NULL
     };
 
+    int prev_x = x;
+
 	while (x != 0) {
         int place = log10(x); // 0 is ones, 1 is tens, etc. 1
         int val = x / pow(10, place);
@@ -273,6 +278,18 @@ Astr fromInt(int x) {
         res[ret.len] = (char)(val + 48);
 
         x -=  val * pow(10, place);
+        
+        int num_zeroes;
+        if (x == 0) {
+            num_zeroes = log10(prev_x);
+        } else {
+            num_zeroes = log10(prev_x) - log10(x); 
+        }
+
+        for (int i = 0; i < num_zeroes; i++) {
+            ret.len++;
+            res[ret.len] = '0';
+        }
 
         ret.len++;
     }

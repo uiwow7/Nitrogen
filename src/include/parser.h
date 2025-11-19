@@ -192,6 +192,15 @@ AstNode *parse(Program program) {
             addChildAst(current_node, new);
         }
 
+        else if (current_token->token_type == Tk_Intliteral) {
+            AstNode *new = new_AstNode();
+            new->token = current_token;
+            new->node_type = Node_Value;
+            // printf("str literal: %s\n", TokenTypeRepr(new->token->token_type));
+
+            addChildAst(current_node, new);
+        }
+
         else if (current_token->token_type == Tk_Closeparen) {
             if (state.inExpr) {
                 state.inExpr = false;
