@@ -230,7 +230,7 @@ Program lex(Astr input, char *filename) {
 
             state.in_strliteral = false;
         } 
-        else if (c == '(' && !state.in_strliteral) {
+        if (c == '(' && !state.in_strliteral) {
             state.tracker_index = -1;
 
             push_token(&program, (Token){
