@@ -156,6 +156,7 @@ AstNode *parse(Program program) {
 
             removeChildAst(current_node, state.node_ref_index);
             addChildAst(new, state.node_ref);
+            addChildAst(current_node, new);
 
             state.node_ref = NULL;
         }

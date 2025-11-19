@@ -2,11 +2,6 @@
 
 #define INTERPRETER_IMPL
 
-typedef struct InterpreterState {
-    char *current_function;
-    bool in_fn_call;
-} InterpreterState;
-
 typedef struct NodeValue {
     void* loc;
     enum {
@@ -17,9 +12,59 @@ typedef struct NodeValue {
         Type_char,
         Type_ptr_int,
         Type_ptr_float,
-        Type_value
+        Type_value,
+        Type_symbol
     } type;
 } NodeValue;
+
+typedef struct Variable {
+    char *name;
+    NodeValue *value;
+} Variable;
+
+typedef struct Variables {
+    Variable *start;
+    int len;
+    int capacity;
+} Variables;
+
+typedef struct InterpreterState {
+    char *current_function;
+    bool in_fn_call;
+    Variables vars;
+} InterpreterState;
+
+#define value_null (NodeValue){.loc = NULL, .type = Type_null}
+
+#define VARS_CAPACITY 128
+Variables init_Vars() {
+    Variable  *start = calloc(VARS_CAPACITY, sizeof(Variable));
+    return (Variables){
+        .capacity = VARS_CAPACITY,
+        .len = 0,
+        .start = start
+    };
+}
+
+void setVariable(Variables *vars, Variable var) {    
+    if (vars->len >= vars->capacity) {
+        vars->capacity *= 2;
+        vars->start = realloc(vars->start, vars->capacity * sizeof(Variable));
+    }
+
+    vars->start[vars->len] = var;
+    vars->len++;
+}
+
+NodeValue getVariableValue(Variables *vars, char *name) {
+    for (int i = 0; i < vars->len; i++) {
+        if (streq(name, vars->start[i].name)) {
+            return *(vars->start[i].value);
+        }
+    }
+
+    return value_null;
+}
 
 /// @brief Converts a NodeValue into a string
 /// @param val The NodeValue to convert
@@ -46,6 +91,8 @@ char *valueAsString(NodeValue val) {
             return AstrToStr(concat(_Astr("int*: 0x"), fromInt((long)*(int**)(val.loc))));
         case Type_ptr_float:
             return AstrToStr(concat(_Astr("float*: 0x"), fromInt((long)*(int**)(val.loc))));
+        case Type_symbol:
+            return valueAsString(*(((Variable*)val.loc)->value));
     }
 
     return "TODO";
@@ -97,9 +144,9 @@ NodeValue traverseAstnode(AstNode* node, InterpreterState* state) {
                 .loc = node->token->values
             };
         }
-    }
+    }   
 
-    NodeValue* values;
+    NodeValue *values;
 
     if (node->children.length == 0) {
         values = malloc(sizeof(NodeValue));
@@ -120,6 +167,12 @@ NodeValue traverseAstnode(AstNode* node, InterpreterState* state) {
             // printf("calling: %p, %s\n", values, (char*)(node->token->values));
             interpretFunctionCall(node, state, values, node->children.length);
         }
+
+        else if (node->node_type == Node_Action) {
+            if (node->token->token_type == Tk_Assign) {
+                setVariable(&(state->vars), (Variable){.name = "TESTNAME", .value = values});
+            }
+        }
     }
 
     int type = Type_value;
@@ -135,7 +188,8 @@ NodeValue traverseAstnode(AstNode* node, InterpreterState* state) {
 void interpretAst(AstNode* root) {
     InterpreterState state = {
         .current_function = NULL,
-        .in_fn_call = false
+        .in_fn_call = false,
+        .vars = init_Vars()
     };
 
     traverseAstnode(root, &state);

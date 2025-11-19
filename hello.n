@@ -1,1 +1,2 @@
-print(700);
+int x = 700;
+print(x);
